@@ -1,4 +1,3 @@
-// start slingin' some d3 here.
 
 var gameOptions = {
     height: 450,
@@ -9,17 +8,21 @@ var gameOptions = {
 
 var gameStats = {
     score: 0,
-    bestScore: 0
+    bestScore: 0,
+    collision : 0
 }
 var gameBoard = d3.select('.container')
                   .append('svg:svg')
                   .attr('width', gameOptions.width)
                   .attr('height', gameOptions.height)
-// create player --- {}
-// will have var x, y;
-//  needs a color (not blue)
-// needs to be draggable ---
-//
+
+var randomLocX = function(){
+  return Math.random()*gameOptions.width
+}
+
+var randomLocY = function(){
+  return Math.random()*gameOptions.height
+}
 
 var drag = d3.behavior.drag()
              .on('dragstart', function() { player.style('fill', 'red'); })
@@ -55,18 +58,18 @@ var enemiesArray = createEnemies();
 
 
 var updateScore = function (){
-  d3.select('#current-score')
+  gameStats.score = gameStats.score + 10;
+  d3.select('.current > span')
       .text(gameStats.score.toString())
 }
 
 var updateBestScore =  function (){
-  gameStats.bestScore = (function(){
-    return gameStats.score > gameStats.bestScore ? gameStats.score : gameStats.bestScore})() //return high score between gameStats.bestScore, and gameStats.score
-
-  d3.select('#best-score').text(gameStats.bestScore.toString())
+  if (gameStats.score > gameStats.bestScore){
+    gameStats.bestScore = gameStats.score;
+    d3.select('.high > span').text(gameStats.bestScore.toString())
+  }
 }
 
-//enemy
 d3.select('.container').select('svg')
   .selectAll('div')
   .data(enemiesArray)
@@ -82,12 +85,40 @@ enemies = d3.selectAll('.enemy')
 var enemyMove = function(){
   enemies.transition()
   .duration(1000)
-  .each(function(d){
-    d3.select(this)
-    .transition()
-    .attr('cx',Math.random()*gameOptions.width)
-    .attr('cy',Math.random()*gameOptions.height)
+  .attr('cx',randomLocX)
+  .attr('cy',randomLocY)
+  .each('end',function(){
+    enemyMove( d3.select(this))
   })
 }
+enemyMove();
+var prevCollision = false
+var checkCollision = function() {
+  var radiusSum, separation, xDiff, yDiff, collision;
 
-setInterval(enemyMove,1000)
+  d3.selectAll(".enemy").each(function(){
+    radiusSum = parseFloat(25) + parseInt(player.attr("r"));
+    xDiff = parseFloat(d3.select(this).attr('cx')) - parseFloat(player.attr("cx"));
+    yDiff = parseFloat(d3.select(this).attr('cy')) - parseFloat(player.attr("cy"));
+    separation = Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
+    if (separation < radiusSum){
+    collision = true
+  }})
+
+
+    if(collision){
+      updateBestScore()
+      gameStats.score = 0;
+
+        if(prevCollision != collision){
+          gameStats.collision++
+          d3.select('.collisions > span')
+        .text(gameStats.collision.toString())
+        }
+    }
+    prevCollision = collision
+};
+
+d3.timer(checkCollision)
+setInterval(updateScore, 100);
+
